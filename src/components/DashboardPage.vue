@@ -61,6 +61,15 @@
 
       <!-- Categories -->
       <div class="menu-section">
+        <!-- All Menu Items button -->
+        <button 
+          class="menu-item all-items-button" 
+          @click="filterCategory('All')"
+        >
+          <i class="fas fa-utensils"></i>
+          <span>All Menu Items</span>
+        </button>
+
         <h3>Drinks</h3>
         <div class="menu-items">
           <button 
@@ -131,7 +140,7 @@
 
       <!-- Display category title dynamically -->
       <div class="category-header">
-        <h2>{{ currentCategory === 'All Drinks' ? 'Menu' : currentCategory }}</h2>
+        <h2>{{ isFirstTimeUser || currentCategory === 'All' ? 'All Menu Items' : (currentCategory === 'All Drinks' ? 'Menu' : currentCategory) }}</h2>
       </div>
 
       <!-- Loading indicator -->
@@ -221,6 +230,7 @@ export default {
       itemStocks: {}, // Add back the itemStocks property
       ws: null,
       wsConnected: false,
+      isFirstTimeUser: false, // Add this flag for first time users
     };
   },
 
@@ -252,9 +262,15 @@ beforeUnmount() {
       }
     );
     
+    // Check if this is a first login
+    this.isFirstTimeUser = this.checkFirstLogin();
+    
     // Check for last viewed category first
     const lastViewedCategory = localStorage.getItem('lastViewedCategory');
-    if (lastViewedCategory) {
+    if (this.isFirstTimeUser) {
+      // For first login, set category to 'All' to show all items
+      this.currentCategory = 'All';
+    } else if (lastViewedCategory) {
       this.currentCategory = lastViewedCategory;
     } else if (this.$route.query.category) {
       // Only use route query if no last viewed category exists
@@ -279,6 +295,19 @@ beforeUnmount() {
     
  
   methods: {
+    // Check if this is a first login or account creation
+    checkFirstLogin() {
+      const firstLoginKey = `first_login_${this.userEmail}`;
+      const isFirstLogin = localStorage.getItem(firstLoginKey) !== 'false';
+      
+      // Mark as not first login anymore
+      if (isFirstLogin) {
+        localStorage.setItem(firstLoginKey, 'false');
+      }
+      
+      return isFirstLogin;
+    },
+    
     // Handle item updates from ItemEditor
     handleItemsUpdated(event) {
       console.log('Items updated event received:', event.detail);
@@ -445,6 +474,11 @@ beforeUnmount() {
     },
 
     filterCategory(category) {
+      // If this is a first-time user and they click a category, they're no longer in first-time mode
+      if (this.isFirstTimeUser) {
+        this.isFirstTimeUser = false;
+      }
+      
       this.currentCategory = category;
       // Save the selected category
       localStorage.setItem('lastViewedCategory', category);
@@ -485,10 +519,21 @@ beforeUnmount() {
       const query = this.searchQuery.toLowerCase();
       
       // Filter API items based on category and search query
-      if (this.currentCategory === 'All Drinks') {
+      if (this.isFirstTimeUser || this.currentCategory === 'All') {
+        // For first login or 'All' category, show all items (both drinks and food)
+        this.filteredItems = this.apiItems.filter(item => 
+          item.name.toLowerCase().includes(query)
+        );
+      } else if (this.currentCategory === 'All Drinks') {
         // For "All Drinks", get all items that are drink categories
         this.filteredItems = this.apiItems.filter(item => 
           !this.foodCategories.includes(item.category) && // Exclude food categories
+          item.name.toLowerCase().includes(query)
+        );
+      } else if (this.currentCategory === 'All Food') {
+        // For "All Food", get all items that are food categories
+        this.filteredItems = this.apiItems.filter(item => 
+          this.foodCategories.includes(item.category) && // Include only food categories
           item.name.toLowerCase().includes(query)
         );
       } else {
@@ -543,7 +588,11 @@ beforeUnmount() {
           
           // If current category doesn't exist anymore, reset to a valid one
           const allCategoryNames = [...this.drinkCategories, ...this.foodCategories];
-          if (!allCategoryNames.includes(this.currentCategory) && 
+          
+          // For first time users, we've already set the category to 'All'
+          if (!this.isFirstTimeUser && 
+              !allCategoryNames.includes(this.currentCategory) && 
+              this.currentCategory !== 'All' &&
               this.currentCategory !== 'All Drinks' && 
               this.currentCategory !== 'All Food') {
             this.currentCategory = this.drinkCategories.length > 0 ? 'All Drinks' : 
@@ -785,6 +834,30 @@ beforeUnmount() {
   padding: 20px;
   font-size: 18px;
   color: #d12f7a;
+}
+
+/* All Menu Items button styling */
+.all-items-button {
+  background-color: #f8d1d1;
+  margin: 10px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  color: #d12f7a;
+  transition: all 0.3s ease;
+}
+
+.all-items-button:hover {
+  background-color: #f8c6d0;
+  transform: scale(1.02);
+}
+
+.dark-mode .all-items-button {
+  background-color: #444;
+  color: #f8c6d0;
+}
+
+.dark-mode .all-items-button:hover {
+  background-color: #555;
 }
 
 .no-items {
