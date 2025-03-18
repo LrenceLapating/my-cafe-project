@@ -149,7 +149,7 @@ export default {
     },
 
     initWebSocket() {
-      const wsUrl = `ws://${window.location.hostname}:8000/ws/orders`;
+      const wsUrl = `ws://${window.location.hostname}:8000/ws/orders`;    
       this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = () => {
